@@ -5,7 +5,7 @@
 "use strict";
 
 import { Logger } from "../helpers/logger";
-import { commands, scm, Uri, Disposable, SCMProvider, SCMResource, SCMResourceGroup, Event, ProviderResult, workspace } from "vscode";
+import { commands, scm, Uri, Disposable, SCMProvider, SCMResource, SCMResourceGroup, Event, EventEmitter, ProviderResult, workspace } from "vscode";
 import { CommitHoverProvider } from "./scm/commithoverprovider";
 import { Model } from "./scm/model";
 import { Status } from "./scm/status";
@@ -147,6 +147,8 @@ export class TfvcSCMProvider implements SCMProvider {
         const onWorkspaceChange = anyEvent(fsWatcher.onDidChange, fsWatcher.onDidCreate, fsWatcher.onDidDelete);
         const onTfvcChange = filterEvent(onWorkspaceChange, uri => /^\$tf\//.test(workspace.asRelativePath(uri)));
         this._model = new Model(repoContext.RepoFolder, repoContext.TfvcRepository, onWorkspaceChange);
+        // Hook up the model change event to trigger our own event
+        this._model.onDidChange((groups: ResourceGroup[]) => this._onDidChange.fire(groups));
 
         let version: string = "unknown";
         try {
@@ -154,7 +156,7 @@ export class TfvcSCMProvider implements SCMProvider {
         } catch (err) {
             this._extensionManager.DisplayWarningMessage(err.message);
         }
-        TfvcOutput.AppendLine("Using TFVC command line: " + repoContext.Tfvc.Location + " (" + version + ")");
+        TfvcOutput.AppendLine("Using TFVC command line: " + repoContext.TfvcRepository.TfvcLocation + " (" + version + ")");
 
         const commitHoverProvider = new CommitHoverProvider(this._model);
         const contentProvider = new TfvcContentProvider(repoContext.TfvcRepository, rootPath, onTfvcChange);
@@ -172,6 +174,9 @@ export class TfvcSCMProvider implements SCMProvider {
             //autoFetcher,
             //mergeDecorator
         );
+
+        // Refresh the model now that we are done setting up
+        this._model.Refresh();
     }
 
     private cleanup() {
@@ -190,8 +195,12 @@ export class TfvcSCMProvider implements SCMProvider {
 
     /* Implement SCMProvider interface */
 
+    private _onDidChange = new EventEmitter<SCMResourceGroup[]>();
+    public get onDidChange(): Event<SCMResourceGroup[]> {
+        return this._onDidChange.event;
+    }
+
     public get resources(): SCMResourceGroup[] { return this._model.Resources; }
-    public get onDidChange(): Event<SCMResourceGroup[]> { return this._model.onDidChange; }
     public get label(): string { return "TFVC"; }
     public get count(): number {
         // TODO is this too simple? The Git provider does more

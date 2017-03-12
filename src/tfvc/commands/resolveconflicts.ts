@@ -59,11 +59,27 @@ export class ResolveConflicts implements ITfvcCommand<IConflict[]> {
             if (startIndex >= 0 && endIndex > startIndex) {
                 conflicts.push({
                     localPath: line.slice(startIndex + "Resolved ".length, endIndex),
-                    type: ConflictType.RESOLVED
+                    type: ConflictType.RESOLVED,
+                    message: line
                 });
             }
         }
 
         return conflicts;
+    }
+
+    public GetExeArguments(): IArgumentProvider {
+        const builder: ArgumentBuilder = new ArgumentBuilder("resolve", this._serverContext, true /* skipCollectionOption */)
+            .AddAll(this._itemPaths)
+            .AddSwitchWithValue("auto", AutoResolveType[this._autoResolveType], false);
+        return builder;
+    }
+
+    public GetExeOptions(): any {
+        return this.GetOptions();
+    }
+
+    public async ParseExeOutput(executionResult: IExecutionResult): Promise<IConflict[]> {
+        return await this.ParseOutput(executionResult);
     }
 }

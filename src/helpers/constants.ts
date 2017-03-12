@@ -7,6 +7,8 @@
 /* tslint:disable:variable-name */
 export class Constants {
     static ExtensionName: string = "team";
+    static ExtensionUserAgentName: string = "VSTSVSCode";
+    static ExtensionVersion: string = "1.115.0";
     static OAuth: string = "OAuth";
     static TokenLearnMoreUrl: string = "https://aka.ms/v9r4jt";
     static ReadmeLearnMoreUrl: string = "https://aka.ms/jkapah";
@@ -90,6 +92,7 @@ export class TelemetryEvents {
     static ShowMyWorkItemQueries: string = TelemetryEvents.TelemetryPrefix + "showmyworkitemqueries";
     static StartUp: string = TelemetryEvents.TelemetryPrefix + "startup";
     static TokenLearnMoreClick: string = TelemetryEvents.TelemetryPrefix + "tokenlearnmoreclick";
+    static TokenInSettings: string = TelemetryEvents.TelemetryPrefix + "tokeninsettings";
     static ViewPullRequest: string = TelemetryEvents.TelemetryPrefix + "viewpullrequest";
     static ViewPullRequests: string = TelemetryEvents.TelemetryPrefix + "viewpullrequests";
     static ViewMyWorkItems: string = TelemetryEvents.TelemetryPrefix + "viewmyworkitems";
@@ -108,6 +111,8 @@ export class TfvcTelemetryEvents {
     static Status: string = TfvcTelemetryEvents.TelemetryPrefix + "status";
     static StartUp: string = TfvcTelemetryEvents.TelemetryPrefix + "startup";
     static Sync: string = TfvcTelemetryEvents.TelemetryPrefix + "sync";
+    static UsingClc: string = TfvcTelemetryEvents.TelemetryPrefix + "clc";
+    static UsingExe: string = TfvcTelemetryEvents.TelemetryPrefix + "exe";
 }
 
 export class WellKnownRepositoryTypes {

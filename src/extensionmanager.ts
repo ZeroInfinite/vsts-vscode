@@ -11,7 +11,7 @@ import { CredentialManager } from "./helpers/credentialmanager";
 import { Logger } from "./helpers/logger";
 import { Strings } from "./helpers/strings";
 import { Utils } from "./helpers/utils";
-import { UrlMessageItem, VsCodeUtils } from "./helpers/vscodeutils";
+import { ButtonMessageItem, VsCodeUtils } from "./helpers/vscodeutils";
 import { RepositoryContextFactory } from "./contexts/repocontextfactory";
 import { IRepositoryContext, RepositoryType } from "./contexts/repositorycontext";
 import { TeamServerContext} from "./contexts/servercontext";
@@ -22,6 +22,7 @@ import { RepositoryInfoClient } from "./clients/repositoryinfoclient";
 import { UserInfo } from "./info/userinfo";
 import { CredentialInfo } from "./info/credentialinfo";
 import { TeamExtension } from "./team-extension";
+import { TfCommandLineRunner } from "./tfvc/tfcommandlinerunner";
 import { TfvcExtension } from "./tfvc/tfvc-extension";
 import { TfvcErrorCodes } from "./tfvc/tfvcerror";
 import { TfvcSCMProvider } from "./tfvc/tfvcscmprovider";
@@ -44,6 +45,7 @@ export class ExtensionManager implements Disposable {
     private _teamExtension: TeamExtension;
     private _tfvcExtension: TfvcExtension;
     private _scmProvider: TfvcSCMProvider;
+    private _showNagMessage: boolean = true;
 
     public async Initialize(): Promise<void> {
         await this.setupFileSystemWatcherOnConfig();
@@ -52,6 +54,8 @@ export class ExtensionManager implements Disposable {
         // Add the event listener for settings changes, then re-initialized the extension
         if (workspace) {
             workspace.onDidChangeConfiguration(() => {
+                Logger.LogDebug("Reinitializing due to onDidChangeConfiguration");
+                //FUTURE: Check to see if we really need to do the re-initialization
                 this.Reinitialize();
             });
         }
@@ -86,9 +90,9 @@ export class ExtensionManager implements Disposable {
     }
 
     //Meant to reinitialize the extension when coming back online
-    public Reinitialize(): void {
+    public Reinitialize(signingOut?: boolean): void {
         this.cleanup();
-        this.initializeExtension();
+        this.initializeExtension(signingOut);
     }
 
     public EnsureInitialized(expectedType: RepositoryType): boolean {
@@ -116,7 +120,7 @@ export class ExtensionManager implements Disposable {
     public DisplayErrorMessage(message?: string) {
         let msg: string = message ? message : this._errorMessage;
         if (msg) {
-            VsCodeUtils.ShowErrorMessage(message ? message : this._errorMessage);
+            VsCodeUtils.ShowErrorMessage(msg);
         }
     }
 
@@ -151,7 +155,7 @@ export class ExtensionManager implements Disposable {
     private displayNoCredentialsMessage(): void {
         let error: string = Strings.NoTeamServerCredentialsRunSignin;
         let displayError: string = Strings.NoTeamServerCredentialsRunSignin;
-        let messageItem: UrlMessageItem = undefined;
+        let messageItem: ButtonMessageItem = undefined;
         if (this._serverContext.RepoInfo.IsTeamServices === true) {
             messageItem = { title : Strings.LearnMore,
                             url : Constants.TokenLearnMoreUrl,
@@ -171,7 +175,7 @@ export class ExtensionManager implements Disposable {
         });
     }
 
-    private async initializeExtension() : Promise<void> {
+    private async initializeExtension(signingOut?: boolean) : Promise<void> {
         //Don't initialize if we don't have a workspace
         if (!workspace || !workspace.rootPath) {
             return;
@@ -184,6 +188,7 @@ export class ExtensionManager implements Disposable {
         //If Logging is enabled, the user must have used the extension before so we can enable
         //it here.  This will allow us to log errors when we begin processing TFVC commands.
         this._settings = new Settings();
+        Telemetry.Initialize(this._settings); //We don't have the serverContext just yet
         this.logStart(this._settings.LoggingLevel, workspace.rootPath);
         this._teamServicesStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 100);
 
@@ -196,16 +201,22 @@ export class ExtensionManager implements Disposable {
                 //Now that we have a server context, we can update it on the repository context
                 RepositoryContextFactory.UpdateRepositoryContext(this._repoContext, this._serverContext);
 
-                //We need to be able to send feedback even if we aren't authenticated with the server
-                Telemetry.Initialize(this._settings); //We don't have the serverContext just yet
                 this._feedbackClient = new FeedbackClient();
-
                 this._credentialManager = new CredentialManager();
                 let accountSettings = new AccountSettings(this._serverContext.RepoInfo.Account);
+                //FUTURE: The nag message, accountSettings.TeamServicesPersonalAccessToken and signingOut flag can be remove in VNEXT (documentation was removed in 1.104; Aug 2016)
+                if (accountSettings.TeamServicesPersonalAccessToken && !signingOut && this._showNagMessage) {
+                    this._showNagMessage = false;  //show message only at start of VS Code (not during re-initialization)
+                    Logger.LogDebug("Found a token in settings.json");
+                    Telemetry.SendEvent(TelemetryEvents.TokenInSettings);
+                    VsCodeUtils.ShowWarningMessage(Strings.FoundTokenInSettings);
+                }
 
-                this._credentialManager.GetCredentials(this._serverContext, accountSettings.TeamServicesPersonalAccessToken).then(async (creds: CredentialInfo) => {
+                this._credentialManager.GetCredentials(this._serverContext, undefined).then(async (creds: CredentialInfo) => {
                     if (!creds || !creds.CredentialHandler) {
-                        this.displayNoCredentialsMessage();
+                        if (!signingOut) {
+                            this.displayNoCredentialsMessage();
+                        }
                         return;
                     } else {
                         this._serverContext.CredentialInfo = creds;
@@ -356,7 +367,7 @@ export class ExtensionManager implements Disposable {
         }
         Logger.SetLoggingLevel(loggingLevel);
         if (rootPath !== undefined) {
-            Logger.SetLogPath(rootPath);
+            Logger.LogPath = rootPath;
             Logger.LogInfo("*** FOLDER: " + rootPath + " ***");
         } else {
             Logger.LogInfo("*** Folder not opened ***");
@@ -392,7 +403,7 @@ export class ExtensionManager implements Disposable {
         }
     }
 
-    private notifyBranchChanged(currentBranch: string) {
+    private notifyBranchChanged(currentBranch: string) : void {
         this._teamExtension.NotifyBranchChanged(currentBranch);
         //this._tfvcExtension.NotifyBranchChanged(currentBranch);
     }
@@ -471,5 +482,7 @@ export class ExtensionManager implements Disposable {
             this._scmProvider.dispose();
             this._scmProvider = undefined;
         }
+        // Make sure we clean up any running instances of TF
+        TfCommandLineRunner.DisposeStatics();
     }
 }

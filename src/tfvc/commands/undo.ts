@@ -51,7 +51,7 @@ export class Undo implements ITfvcCommand<string[]> {
         //Otherwise, we assume some error occurred so let that be thrown.
         if (executionResult.exitCode !== 0) {
             //Remove any entries for which there were no pending changes
-            lines = lines.filter(e => !e.startsWith("No pending changes were found for "));
+            lines = lines.filter(e => !e.startsWith("No pending changes "));
             if (executionResult.exitCode === 100 && lines.length === 0) {
                 //All of the files had no pending changes, return []
                 return [];
@@ -73,6 +73,18 @@ export class Undo implements ITfvcCommand<string[]> {
             }
         }
         return filesUndone;
+    }
+
+    public GetExeArguments(): IArgumentProvider {
+        return this.GetArguments();
+    }
+
+    public GetExeOptions(): any {
+        return this.GetOptions();
+    }
+
+    public async ParseExeOutput(executionResult: IExecutionResult): Promise<string[]> {
+        return await this.ParseOutput(executionResult);
     }
 
     //line could be 'Undoing edit: file1.txt', 'Undoing add: file1.txt'

@@ -61,7 +61,8 @@ gulp.task('build', ['copyresources'], function () {
     let tsProject = typescript.createProject('./tsconfig.json');
     let tsResult = tsProject.src()
         .pipe(sourcemaps.init())
-        .pipe(tsProject());
+        .pipe(tsProject())
+        .on('error', errorHandler);
 
     return tsResult.js
         .pipe(sourcemaps.write('.', {
@@ -104,9 +105,39 @@ gulp.task('test-integration', function() {
 
 gulp.task('test-coverage', function() {
     //credentialstore is brought in from separate repository, exclude it here
-    return gulp.src(['out/src/**/*.js', '!out/src/credentialstore/**'])
-    //.pipe(istanbul({includeUntested: true}))
-    .pipe(istanbul())
+    //exclude the files we know we can't get coverage on (e.g., vscode, etc.)
+    return gulp.src(['out/src/**/*.js', '!out/src/credentialstore/**'
+        ,'!out/src/extension.js'
+        ,'!out/src/extensionmanager.js'
+        ,'!out/src/team-extension.js'
+        ,'!out/src/clients/buildclient.js'
+        ,'!out/src/clients/coreapiclient.js'
+        ,'!out/src/clients/feedbackclient.js'
+        ,'!out/src/clients/gitclient.js'
+        ,'!out/src/clients/repositoryinfoclient.js'
+        ,'!out/src/clients/witclient.js'
+        ,'!out/src/contexts/repocontextfactory.js'
+        ,'!out/src/contexts/tfvccontext.js'
+        ,'!out/src/helpers/settings.js'
+        ,'!out/src/helpers/vscodeutils.js'
+        ,'!out/src/services/telemetry.js'
+        ,'!out/src/services/coreapi.js'
+        ,'!out/src/tfvc/tfvcrepository.js'
+        ,'!out/src/tfvc/tfvc-extension.js'
+        ,'!out/src/tfvc/tfcommandlinerunner.js'
+        ,'!out/src/tfvc/tfvcoutput.js'
+        ,'!out/src/tfvc/tfvcscmprovider.js'
+        ,'!out/src/tfvc/tfvcsettings.js'
+        ,'!out/src/tfvc/uihelper.js'
+        ,'!out/src/tfvc/util.js'
+        ,'!out/src/tfvc/scm/commithoverprovider.js'
+        ,'!out/src/tfvc/scm/decorationprovider.js'
+        ,'!out/src/tfvc/scm/model.js'
+        ,'!out/src/tfvc/scm/resource.js'
+        ,'!out/src/tfvc/scm/tfvccontentprovider.js'
+    ])
+    .pipe(istanbul({includeUntested: true}))
+    //.pipe(istanbul())
     .pipe(istanbul.hookRequire()) //for using node.js
     .on('finish', function() {
         gulp.src('out/test*/**/*.js')

@@ -7,12 +7,13 @@
 import { Uri, EventEmitter, Event, SCMResourceGroup, Disposable, window } from "vscode";
 import { Telemetry } from "../../services/telemetry";
 import { TfvcTelemetryEvents } from "../../helpers/constants";
-import { Repository } from "../repository";
+import { TfvcRepository } from "../tfvcrepository";
 import { filterEvent } from "../util";
 import { Resource } from "./resource";
 import { ResourceGroup, IncludedGroup, ExcludedGroup, ConflictsGroup } from "./resourcegroups";
 import { IConflict, IPendingChange } from "../interfaces";
 import { ConflictType, GetStatuses, Status } from "./status";
+import { TfvcOutput } from "../tfvcoutput";
 
 import * as _ from "underscore";
 import * as path from "path";
@@ -20,7 +21,7 @@ import * as path from "path";
 export class Model implements Disposable {
     private _disposables: Disposable[] = [];
     private _repositoryRoot: string;
-    private _repository: Repository;
+    private _repository: TfvcRepository;
     private _statusAlreadyInProgress: boolean;
     private _explicitlyExcluded: string[] = [];
 
@@ -33,13 +34,12 @@ export class Model implements Disposable {
     private _includedGroup = new IncludedGroup([]);
     private _excludedGroup = new ExcludedGroup([]);
 
-    public constructor(repositoryRoot: string, repository: Repository, onWorkspaceChange: Event<Uri>) {
+    public constructor(repositoryRoot: string, repository: TfvcRepository, onWorkspaceChange: Event<Uri>) {
         this._repositoryRoot = repositoryRoot;
         this._repository = repository;
-        // TODO handle $tf folder as well
-        const onNonGitChange = filterEvent(onWorkspaceChange, uri => !/\/\.tf\//.test(uri.fsPath));
+        // Ignore workspace changes that take place in the .tf or $tf folder (where path contains /.tf/ or \$tf\)
+        const onNonGitChange = filterEvent(onWorkspaceChange, uri => !/\/\.tf\//.test(uri.fsPath) && !/\\\$tf\\/.test(uri.fsPath));
         onNonGitChange(this.onFileSystemChange, this, this._disposables);
-        this.status();
     }
 
     public dispose() {
@@ -120,11 +120,22 @@ export class Model implements Disposable {
 
     private async update(): Promise<void> {
         const changes: IPendingChange[] = await this._repository.GetStatus();
+        let foundConflicts: IConflict[] = [];
 
-        //Check for any pending deletes and run 'tf delete' on each
-        await this.processDeletes(changes);
+        // Without any server context we can't run delete or resolve commands
+        if (this._repository.HasContext) {
+            // Check for any pending deletes and run 'tf delete' on each
+            await this.processDeletes(changes);
 
-        const foundConflicts: IConflict[] = await this._repository.FindConflicts();
+            // Get the list of conflicts
+            //TODO: Optimize out this call unless it is needed. This call takes over 4 times longer than the status call and is unecessary most of the time.
+            foundConflicts = await this._repository.FindConflicts();
+            foundConflicts.forEach(conflict => {
+                if (conflict.message) {
+                    TfvcOutput.AppendLine(`[Resolve] ${conflict.message}`);
+                }
+            });
+        }
 
         const conflict: IConflict = foundConflicts.find(c => c.type === ConflictType.NAME_AND_CONTENT || c.type === ConflictType.RENAME);
         if (conflict) {

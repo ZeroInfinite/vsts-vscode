@@ -5,7 +5,9 @@
 "use strict";
 
 import { TeamServerContext} from "../../contexts/servercontext";
+import { Strings } from "../../helpers/strings";
 import { IArgumentProvider, IExecutionResult, IItemInfo, ITfvcCommand } from "../interfaces";
+import { TfvcError, TfvcErrorCodes } from "../tfvcerror";
 import { ArgumentBuilder } from "./argumentbuilder";
 import { CommandHelper } from "./commandhelper";
 
@@ -34,7 +36,7 @@ export class GetInfo implements ITfvcCommand<IItemInfo[]> {
     }
 
     /**
-     * Example of output
+     * Example of output (Exactly the same for tf.cmd and tf.exe)
      * Local information:
      * Local path:  D:\tmp\TFVC_1\build.xml
      * Server path: $/TFVC_1/build.xml
@@ -61,15 +63,16 @@ export class GetInfo implements ITfvcCommand<IItemInfo[]> {
             return itemInfos;
         }
 
-        const lines: string[] = CommandHelper.SplitIntoLines(executionResult.stdout);
+        const lines: string[] = CommandHelper.SplitIntoLines(executionResult.stdout, true, true);
         let curMode: string = ""; // "" is local mode, "server" is server mode
         let curItem: IItemInfo;
         for (let i: number = 0; i < lines.length; i++) {
             const line: string = lines[i];
-            if (!line || line.trim().length === 0) {
-                continue;
-            }
-            if (line.toLowerCase().startsWith("local information:")) {
+            // Check the beginning of a new item
+            // "no items match" means that the item requested was not found. In this case
+            // we will return an empty info object in that item's place.
+            if (line.toLowerCase().startsWith("no items match ") ||
+                line.toLowerCase().startsWith("local information:")) {
                 // We are starting a new Info section for the next item.
                 // So, finish off any in progress item and start a new one.
                 curMode = "";
@@ -84,7 +87,7 @@ export class GetInfo implements ITfvcCommand<IItemInfo[]> {
                 // Add the property to the current item
                 const colonPos: number = line.indexOf(":");
                 if (colonPos > 0) {
-                    const propertyName = this.getPropertyName(curMode + line.slice(0, colonPos).trim().toLowerCase());
+                    const propertyName: string = this.getPropertyName(curMode + line.slice(0, colonPos).trim().toLowerCase());
                     if (propertyName) {
                         const propertyValue = colonPos + 1 < line.length ? line.slice(colonPos + 1).trim() : "";
                         curItem[propertyName] = propertyValue;
@@ -96,7 +99,31 @@ export class GetInfo implements ITfvcCommand<IItemInfo[]> {
             itemInfos.push(curItem);
         }
 
+        // If all of the info objects are "empty" let's report an error
+        if (itemInfos.length > 0 &&
+            itemInfos.length === itemInfos.filter(info => info.localItem === undefined).length) {
+            throw new TfvcError({
+                message: Strings.NoMatchesFound,
+                tfvcErrorCode: TfvcErrorCodes.TfvcNoItemsMatch,
+                exitCode: executionResult.exitCode,
+                stdout: executionResult.stdout,
+                stderr: executionResult.stderr
+            });
+        }
+
         return itemInfos;
+    }
+
+    public GetExeArguments(): IArgumentProvider {
+        return this.GetArguments();
+    }
+
+    public GetExeOptions(): any {
+        return this.GetOptions();
+    }
+
+    public async ParseExeOutput(executionResult: IExecutionResult): Promise<IItemInfo[]> {
+        return await this.ParseOutput(executionResult);
     }
 
     private getPropertyName(name: string): string {

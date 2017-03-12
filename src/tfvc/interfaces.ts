@@ -6,10 +6,11 @@
 
 import { ConflictType } from "./scm/status";
 
-export interface ITfvc {
+export interface ITfCommandLine {
     path: string;
-    version: string;
-    url: string;
+    minVersion: string;
+    proxy: string;
+    isExe: boolean;
 }
 
 export interface IItemInfo {
@@ -87,6 +88,7 @@ export interface ISyncResults {
 export interface IConflict {
     localPath: string;
     type: ConflictType;
+    message: string;
 }
 
 export enum AutoResolveType {
@@ -118,11 +120,15 @@ export interface IArgumentProvider {
     AddProxySwitch(proxy: string);
     GetCommand(): string;
     GetArguments(): string[];
+    GetCommandLine(): string;
     GetArgumentsForDisplay(): string;
 }
 
 export interface ITfvcCommand<T> {
     GetArguments(): IArgumentProvider;
+    GetExeArguments(): IArgumentProvider;
     GetOptions(): any;
+    GetExeOptions(): any;
     ParseOutput(executionResult: IExecutionResult): Promise<T>;
+    ParseExeOutput(executionResult: IExecutionResult): Promise<T>;
 }

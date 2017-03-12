@@ -75,6 +75,20 @@ export class Rename implements ITfvcCommand<string> {
         return "";
     }
 
+    public GetExeArguments(): IArgumentProvider {
+        return new ArgumentBuilder("rename", this._serverContext, true /* skipCollectionOption */)
+            .Add(this._sourcePath)
+            .Add(this._destinationPath);
+    }
+
+    public GetExeOptions(): any {
+        return this.GetOptions();
+    }
+
+    public async ParseExeOutput(executionResult: IExecutionResult): Promise<string> {
+        return await this.ParseOutput(executionResult);
+    }
+
     private getFileFromLine(line: string): string {
         //There's no prefix on the filename line for the Add command
         return line;

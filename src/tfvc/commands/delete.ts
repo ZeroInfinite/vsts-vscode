@@ -79,6 +79,19 @@ export class Delete implements ITfvcCommand<string[]> {
         return filesUndone;
     }
 
+    public GetExeArguments(): IArgumentProvider {
+        return new ArgumentBuilder("delete", this._serverContext, true /* skipCollectionOption */)
+            .AddAll(this._itemPaths);
+    }
+
+    public GetExeOptions(): any {
+        return this.GetOptions();
+    }
+
+    public async ParseExeOutput(executionResult: IExecutionResult): Promise<string[]> {
+        return await this.ParseOutput(executionResult);
+    }
+
     private getFileFromLine(line: string): string {
         //There's no prefix on the filename line for the Delete command
         return line;

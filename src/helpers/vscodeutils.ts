@@ -19,10 +19,11 @@ export class WorkItemQueryQuickPickItem extends BaseQuickPickItem {
     wiql: string;
 }
 
-export class UrlMessageItem implements MessageItem {
+export class ButtonMessageItem implements MessageItem {
     title: string;
-    url: string;
-    telemetryId: string;
+    url?: string;
+    command?: string;
+    telemetryId?: string;
 }
 
 export class VsCodeUtils {
@@ -46,18 +47,26 @@ export class VsCodeUtils {
         return value;
     }
 
+    public static FormatMessage(message: string) : string {
+        if (message) {
+            //Replace newlines with spaces
+            return message.replace(/\r\n/g, " ").replace(/\n/g, " ").trim();
+        }
+        return message;
+    }
+
     public static ShowErrorMessage(message: string) {
-        window.showErrorMessage("(" + Constants.ExtensionName + ") " + message);
+        window.showErrorMessage("(" + Constants.ExtensionName + ") " + VsCodeUtils.FormatMessage(message));
     }
 
     //Allow ability to show additional buttons with the message and return any chosen one via Promise
-    public static ShowErrorMessageWithOptions(message: string, ...urlMessageItem: UrlMessageItem[]) : Q.Promise<UrlMessageItem> {
-        let promiseToReturn: Q.Promise<UrlMessageItem>;
-        let deferred = Q.defer<UrlMessageItem>();
+    public static ShowErrorMessageWithOptions(message: string, ...urlMessageItem: ButtonMessageItem[]) : Q.Promise<ButtonMessageItem> {
+        let promiseToReturn: Q.Promise<ButtonMessageItem>;
+        let deferred = Q.defer<ButtonMessageItem>();
         promiseToReturn = deferred.promise;
 
         //Use the typescript spread operator to pass the rest parameter to showErrorMessage
-        window.showErrorMessage("(" + Constants.ExtensionName + ") " + message, ...urlMessageItem).then((item) => {
+        window.showErrorMessage("(" + Constants.ExtensionName + ") " + VsCodeUtils.FormatMessage(message), ...urlMessageItem).then((item) => {
             if (item) {
                 deferred.resolve(item);
             } else {
@@ -69,6 +78,6 @@ export class VsCodeUtils {
     }
 
     public static ShowWarningMessage(message: string) {
-        window.showWarningMessage("(" + Constants.ExtensionName + ") " + message);
+        window.showWarningMessage("(" + Constants.ExtensionName + ") " + VsCodeUtils.FormatMessage(message));
     }
 }

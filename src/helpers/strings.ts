@@ -21,6 +21,7 @@ export class Strings {
     static NoTfvcBuildsFound: string = "No builds were found for this repository. Click to view your team project's build definitions page.";
     static NoRepoInformation: string = "No Team Services or Team Foundation Server repository configuration was found.  Ensure you've opened a folder that contains a repository.";
     static NoSourceFileForBlame: string = "A source file must be opened to show blame information.";
+    static FoundTokenInSettings: string = "A PAT was found in your VS Code settings.  It will be ignored and you should remove it.  You should now use the Sign In command to store your PAT in a secure location.";
 
     static SendAFrown: string = "Send a Frown";
     static SendASmile: string = "Send a Smile";
@@ -65,11 +66,14 @@ export class Strings {
     static TfVersionWarning: string = "The installed version of the TF command line does not meet the minimum suggested version. You may run into errors or limitations with certain commands until you upgrade. Minimum suggested version: ";
     static TfNoPendingChanges: string = "There are no matching pending changes.";
     static UndoChanges: string = "Undo Changes";
-    static NoChangesToCheckin: string = "There are no changes to checkin. Changes must be added to the 'Included' section to be checked in.";
+    static NoChangesToCheckin: string = "There are no changes to check in. Changes must be added to the 'Included' section to be checked in.";
     static AllFilesUpToDate: string = "All files are up to date.";
     static CommandRequiresFileContext: string = "This command requires a file context and can only be executed from the TFVC viewlet window.";
     static CommandRequiresExplorerContext: string = "This command requires a file context and can only be executed from the Explorer window.";
     static RenamePrompt: string = "Provide the new name for the file.";
+    static NoMatchesFound: string = "No items match any of the file paths provided.";
+    static NoWorkspaceMappings: string = "Could not find a workspace with mappings.  Perhaps the wrong version of TF is being used with the selected folder?";
+    static ShowTfvcOutput: string = "Show TFVC Output";
 
     // TFVC viewlet Strings
     static ExcludedGroupName: string = "Excluded changes";

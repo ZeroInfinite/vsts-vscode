@@ -4,9 +4,11 @@
 *--------------------------------------------------------------------------------------------*/
 "use strict";
 
+import { Strings } from "../../helpers/strings";
 import { IArgumentProvider, IExecutionResult, ITfvcCommand, IWorkspace, IWorkspaceMapping } from "../interfaces";
 import { ArgumentBuilder } from "./argumentbuilder";
 import { CommandHelper } from "./commandhelper";
+import { TfvcError, TfvcErrorCodes } from "../tfvcerror";
 
 /**
  * This command only returns a partial workspace object that allows you to get the name and server.
@@ -23,7 +25,9 @@ export class FindWorkspace implements ITfvcCommand<IWorkspace> {
     }
 
     public GetArguments(): IArgumentProvider {
-        return new ArgumentBuilder("workfold");
+        // Due to a bug in the CLC this command "requires" the login switch although the creds are never used
+        return new ArgumentBuilder("workfold")
+            .AddSwitchWithValue("login", "fake,fake", true);
     }
 
     public GetOptions(): any {
@@ -69,7 +73,8 @@ export class FindWorkspace implements ITfvcCommand<IWorkspace> {
                 continue;
             }
 
-            if (line.startsWith("Workspace:")) {
+            //CLC returns 'Workspace:', tf.exe returns 'Workspace :'
+            if (line.startsWith("Workspace:") || line.startsWith("Workspace :")) {
                 workspaceName = this.getValue(line);
             } else if (line.startsWith("Collection:")) {
                 collectionUrl = this.getValue(line);
@@ -84,6 +89,12 @@ export class FindWorkspace implements ITfvcCommand<IWorkspace> {
                 }
             }
         }
+        if (mappings.length === 0) {
+            throw new TfvcError( {
+                message: Strings.NoWorkspaceMappings,
+                tfvcErrorCode: TfvcErrorCodes.NotATfvcRepository
+             });
+        }
 
         const workspace: IWorkspace = {
             name: workspaceName,
@@ -92,6 +103,35 @@ export class FindWorkspace implements ITfvcCommand<IWorkspace> {
             mappings: mappings
         };
 
+        return workspace;
+    }
+
+    public GetExeArguments(): IArgumentProvider {
+        return this.GetArguments();
+    }
+
+    public GetExeOptions(): any {
+        return this.GetOptions();
+    }
+
+    /**
+     * Parses the output of the workfold command (the EXE output is slightly different from the CLC output parsed above)
+     * SAMPLE
+     * Access denied connecting to TFS server https://account.visualstudio.com/ (authenticating as Personal Access Token)  <-- line is optional
+     * =====================================================================================================================================================
+     * Workspace : MyNewWorkspace2 (user name)
+     * Collection: http://server:8081/tfs/
+     * $/tfsTest_01: D:\tmp\test
+     */
+    public async ParseExeOutput(executionResult: IExecutionResult): Promise<IWorkspace> {
+        let workspace: IWorkspace = await this.ParseOutput(executionResult);
+        if (workspace && workspace.name) {
+            // The workspace name includes the user name, so let's fix that
+            const lastOpenParenIndex: number = workspace.name.lastIndexOf(" (");
+            if (lastOpenParenIndex >= 0) {
+                workspace.name = workspace.name.slice(0, lastOpenParenIndex).trim();
+            }
+        }
         return workspace;
     }
 

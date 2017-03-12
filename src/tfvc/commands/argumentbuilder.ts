@@ -15,7 +15,7 @@ export class ArgumentBuilder implements IArgumentProvider {
     private _arguments: string[] = [];
     private _secretArgumentIndexes: number[] = [];
 
-    public constructor(command: string, serverContext?: TeamServerContext) {
+    public constructor(command: string, serverContext?: TeamServerContext, skipCollectionOption?: boolean) {
         if (!command) {
             throw TfvcError.CreateArgumentMissingError("command");
         }
@@ -23,20 +23,13 @@ export class ArgumentBuilder implements IArgumentProvider {
         this.AddSwitch("noprompt");
 
         if (serverContext && serverContext.RepoInfo && serverContext.RepoInfo.CollectionUrl) {
-            //TODO decode URI since CLC does not expect encoded collection urls
-            this.AddSwitchWithValue("collection", serverContext.RepoInfo.CollectionUrl, false);
+            if (!skipCollectionOption) {
+                //TODO decode URI since CLC does not expect encoded collection urls
+                this.AddSwitchWithValue("collection", serverContext.RepoInfo.CollectionUrl, false);
+            }
             if (serverContext.CredentialInfo) {
                 this.AddSwitchWithValue("login", serverContext.CredentialInfo.Username + "," + serverContext.CredentialInfo.Password, true);
             }
-            //TODO add proxy
-            /*
-            if (useProxyIfAvailable) {
-                final String proxyURI = WorkspaceHelper.getProxyServer(collectionURI);
-                if (StringUtils.isNotEmpty(proxyURI)) {
-                    builder.addSwitch("proxy", proxyURI);
-                }
-            }
-            */
         }
     }
 
@@ -85,6 +78,36 @@ export class ArgumentBuilder implements IArgumentProvider {
         return this._arguments;
     }
 
+    /**
+     * This method builds all the arguments into a single command line. This is needed if
+     * a response file is needed for the commands.
+     */
+    public BuildCommandLine(): string {
+        let result: string = "";
+        this._arguments.forEach((arg) => {
+            const escapedArg = this.escapeArgument(arg);
+            result += escapedArg + " ";
+        });
+        result += "\n";
+        return result;
+    }
+
+    /**
+     * Command line arguments should have all embedded double quotes repeated to escape them.
+     * They should also be surrounded by double quotes if they contain a space (or other whitespace).
+     */
+    private escapeArgument(arg: string) {
+        if (!arg) {
+            return arg;
+        }
+
+        let escaped = arg.replace(/\"/g, "\"\"");
+        if (/\s/.test(escaped)) {
+            escaped = "\"" + escaped + "\"";
+        }
+        return escaped;
+    }
+
     public ToString(): string {
         let output: string = "";
         for (let i = 0; i < this._arguments.length; i++) {
@@ -106,6 +129,10 @@ export class ArgumentBuilder implements IArgumentProvider {
 
     public GetArguments(): string[] {
         return this.Build();
+    }
+
+    public GetCommandLine(): string {
+        return this.BuildCommandLine();
     }
 
     public GetArgumentsForDisplay(): string {

@@ -2,12 +2,12 @@
   "name": "team",
   "displayName": "Visual Studio Team Services",
   "description": "Connect to Team Services, monitor your builds and manage your pull requests and work items for your source repositories",
-  "version": "1.113.0",
+  "version": "1.115.0",
   "publisher": "ms-vsts",
   "icon": "assets/team.png",
   "markdown": "standard",
   "galleryBanner": {
-    "color": "#65217C",
+    "color": "#313131",
     "theme": "dark"
   },
   "keywords": [
@@ -37,6 +37,60 @@
   "main": "./out/src/extension",
   "contributes": {
     "menus": {
+      "commandPalette": [
+        {
+          "command": "team.OpenBlamePage",
+          "when": "scmProvider != tfvc"
+        },
+        {
+          "command": "tfvc.Undo",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.ResolveTakeTheirs",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.ResolveKeepYours",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.Include",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.Exclude",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.Checkin",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.Rename",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.OpenFile",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.OpenDiff",
+          "when": "false"
+        },
+        {
+          "command": "tfvc.Refresh",
+          "when": "scmProvider == tfvc"
+        },
+        {
+          "command": "tfvc.ShowOutput",
+          "when": "scmProvider == tfvc"
+        },
+        {
+          "command": "tfvc.Sync",
+          "when": "scmProvider == tfvc"
+        }
+      ],
       "explorer/context": [
         {
           "command" : "tfvc.Rename",
@@ -45,10 +99,6 @@
         }
       ],
       "scm/title": [
-        {
-          "command" : "team.AssociateWorkItems",
-          "group": "3_commit@4"
-        },
         {
           "command" : "tfvc.Checkin",
           "group": "navigation@1",
@@ -65,16 +115,14 @@
           "when": "scmProvider == tfvc"
         },
         {
-          "command" : "tfvc.Undo",
-          "group": "1_sync@2",
+          "command" : "tfvc.Checkin",
+          "group": "3_commit@1",
           "when": "scmProvider == tfvc"
         },
         {
-          "command" : "tfvc.Checkin",
-          "group": "3_commit@3",
-          "when": "scmProvider == tfvc"
+            "command" : "team.AssociateWorkItems",
+            "group": "3_commit@2"
         },
-
         {
           "command" : "tfvc.ShowOutput",
           "group": "5_output",
@@ -95,17 +143,17 @@
         {
           "command": "tfvc.Undo",
           "when": "scmProvider == tfvc && scmResourceGroup != conflicts",
-          "group": "1_modification@1"
+          "group": "3_commit@1"
         },
         {
           "command": "tfvc.Include",
           "when": "scmProvider == tfvc && scmResourceGroup == excluded",
-          "group": "1_modification@2"
+          "group": "1_modification@1"
         },
         {
           "command": "tfvc.Exclude",
           "when": "scmProvider == tfvc && scmResourceGroup == included",
-          "group": "1_modification@2"
+          "group": "1_modification@1"
         },
         {
           "command": "tfvc.ResolveTakeTheirs",
@@ -119,7 +167,12 @@
         },
         {
           "command": "tfvc.Undo",
-          "when": "scmProvider == tfvc && scmResourceGroup != conflicts",
+          "when": "scmProvider == tfvc && scmResourceGroup == conflicts",
+          "group": "9_cutcopypaste"
+        },
+        {
+          "command": "tfvc.Undo",
+          "when": "scmProvider == tfvc",
           "group": "inline@1"
         },
         {
@@ -135,12 +188,12 @@
         {
           "command": "tfvc.ResolveTakeTheirs",
           "when": "scmProvider == tfvc && scmResourceGroup == conflicts",
-          "group": "inline@1"
+          "group": "inline@2"
         },
         {
           "command": "tfvc.ResolveKeepYours",
           "when": "scmProvider == tfvc && scmResourceGroup == conflicts",
-          "group": "inline@2"
+          "group": "inline@3"
         }
       ]
     },

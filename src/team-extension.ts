@@ -10,7 +10,7 @@ import { CommandNames, Constants, TelemetryEvents, WitTypes } from "./helpers/co
 import { Logger } from "./helpers/logger";
 import { Strings } from "./helpers/strings";
 import { Utils } from "./helpers/utils";
-import { UrlMessageItem, VsCodeUtils } from "./helpers/vscodeutils";
+import { ButtonMessageItem, VsCodeUtils } from "./helpers/vscodeutils";
 import { RepositoryType } from "./contexts/repositorycontext";
 import { BuildClient } from "./clients/buildclient";
 import { GitClient } from "./clients/gitclient";
@@ -33,6 +33,8 @@ export class TeamExtension  {
     private _gitClient: GitClient;
     private _witClient: WitClient;
     private _pinnedQuerySettings: PinnedQuerySettings;
+    private _pollingTimer: NodeJS.Timer;
+    private _initialTimer: NodeJS.Timer;
 
     constructor(manager: ExtensionManager) {
         this._manager = manager;
@@ -93,7 +95,7 @@ export class TeamExtension  {
                 }
             }
         } else {
-            let messageItem : UrlMessageItem = { title : Strings.LearnMore,
+            let messageItem : ButtonMessageItem = { title : Strings.LearnMore,
                                 url : Constants.ReadmeLearnMoreUrl,
                                 telemetryId: TelemetryEvents.ReadmeLearnMoreClick };
             VsCodeUtils.ShowErrorMessageWithOptions(Strings.NoRepoInformation, messageItem).then((item) => {
@@ -110,7 +112,7 @@ export class TeamExtension  {
         if (this._manager.ServerContext !== undefined && this._manager.ServerContext.RepoInfo !== undefined && this._manager.ServerContext.RepoInfo.IsTeamFoundation === true) {
             this._manager.CredentialManager.RemoveCredentials(this._manager.ServerContext.RepoInfo.Host).then(() => {
                 Logger.LogInfo("Signout: Removed credentials for host '" + this._manager.ServerContext.RepoInfo.Host + "'");
-                this._manager.Reinitialize();
+                this._manager.Reinitialize(true);
             }).catch((reason) => {
                 let msg: string = Strings.UnableToRemoveCredentials + this._manager.ServerContext.RepoInfo.Host;
                 this._manager.ReportError(msg, reason, true);
@@ -317,27 +319,33 @@ export class TeamExtension  {
     public InitializeStatusBars() {
         //Only initialize the status bar item if this is a Git repository
         if (this._manager.RepoContext.Type === RepositoryType.GIT) {
-            this._pullRequestStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 99);
-            this._pullRequestStatusBarItem.command = CommandNames.GetPullRequests;
-            this._pullRequestStatusBarItem.text = GitClient.GetPullRequestStatusText(0);
-            this._pullRequestStatusBarItem.tooltip = Strings.BrowseYourPullRequests;
-            this._pullRequestStatusBarItem.show();
+            if (!this._pullRequestStatusBarItem) {
+                this._pullRequestStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 99);
+                this._pullRequestStatusBarItem.command = CommandNames.GetPullRequests;
+                this._pullRequestStatusBarItem.text = GitClient.GetPullRequestStatusText(0);
+                this._pullRequestStatusBarItem.tooltip = Strings.BrowseYourPullRequests;
+                this._pullRequestStatusBarItem.show();
+            }
         }
 
-        this._buildStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 98);
-        this._buildStatusBarItem.command = CommandNames.OpenBuildSummaryPage;
-        this._buildStatusBarItem.text = `$(icon octicon-package) ` + `$(icon octicon-dash)`;
-        this._buildStatusBarItem.tooltip = Strings.NoBuildsFound;
-        this._buildStatusBarItem.show();
+        if (!this._buildStatusBarItem) {
+            this._buildStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 98);
+            this._buildStatusBarItem.command = CommandNames.OpenBuildSummaryPage;
+            this._buildStatusBarItem.text = `$(icon octicon-package) ` + `$(icon octicon-dash)`;
+            this._buildStatusBarItem.tooltip = Strings.NoBuildsFound;
+            this._buildStatusBarItem.show();
+        }
 
-        this._pinnedQueryStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 97);
-        this._pinnedQueryStatusBarItem.command = CommandNames.ViewPinnedQueryWorkItems;
-        this._pinnedQueryStatusBarItem.text = WitClient.GetPinnedQueryStatusText(0);
-        this._pinnedQueryStatusBarItem.tooltip = Strings.ViewYourPinnedQuery;
-        this._pinnedQueryStatusBarItem.show();
+        if (!this._pinnedQueryStatusBarItem) {
+            this._pinnedQueryStatusBarItem = window.createStatusBarItem(StatusBarAlignment.Left, 97);
+            this._pinnedQueryStatusBarItem.command = CommandNames.ViewPinnedQueryWorkItems;
+            this._pinnedQueryStatusBarItem.text = WitClient.GetPinnedQueryStatusText(0);
+            this._pinnedQueryStatusBarItem.tooltip = Strings.ViewYourPinnedQuery;
+            this._pinnedQueryStatusBarItem.show();
+        }
     }
 
-    public InitializeClients(repoType: RepositoryType) {
+    public InitializeClients(repoType: RepositoryType) : void {
         //We can initialize for any repo type (just skip _gitClient if not Git)
         this._pinnedQuerySettings = new PinnedQuerySettings(this._manager.ServerContext.RepoInfo.Account);
         this._buildClient = new BuildClient(this._manager.ServerContext, this._buildStatusBarItem);
@@ -346,7 +354,6 @@ export class TeamExtension  {
             this._gitClient = new GitClient(this._manager.ServerContext, this._pullRequestStatusBarItem);
         }
         this._witClient = new WitClient(this._manager.ServerContext, this._pinnedQuerySettings.PinnedQuery, this._pinnedQueryStatusBarItem);
-        this.refreshPollingItems();
         this.startPolling();
     }
 
@@ -386,22 +393,35 @@ export class TeamExtension  {
 
     //Sets up the interval to refresh polling items
     private startPolling(): void {
-        setInterval(() => this.refreshPollingItems(), 1000 * 60 * this._manager.Settings.PollingInterval);
+        if (!this._pollingTimer) {
+            this._initialTimer = setTimeout(() => this.refreshPollingItems(), 1000 * 8);
+            this._pollingTimer = setInterval(() => this.refreshPollingItems(), 1000 * 60 * this._manager.Settings.PollingInterval);
+        }
     }
 
-    public NotifyBranchChanged(currentBranch: string) {
+    public NotifyBranchChanged(currentBranch: string) : void {
         this.refreshPollingItems();
     }
 
     dispose() {
+        if (this._pollingTimer) {
+            if (this._initialTimer) {
+                clearTimeout(this._initialTimer);
+            }
+            clearInterval(this._pollingTimer);
+            this._pollingTimer = undefined;
+        }
         if (this._pullRequestStatusBarItem !== undefined) {
             this._pullRequestStatusBarItem.dispose();
+            this._pullRequestStatusBarItem = undefined;
         }
         if (this._buildStatusBarItem !== undefined) {
             this._buildStatusBarItem.dispose();
+            this._buildStatusBarItem = undefined;
         }
         if (this._pinnedQueryStatusBarItem !== undefined) {
             this._pinnedQueryStatusBarItem.dispose();
+            this._pinnedQueryStatusBarItem = undefined;
         }
     }
 }

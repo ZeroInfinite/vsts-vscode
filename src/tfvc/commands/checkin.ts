@@ -85,4 +85,24 @@ export class Checkin implements ITfvcCommand<string> {
             return CommandHelper.GetChangesetNumber(executionResult.stdout);
         }
     }
+
+    public GetExeArguments(): IArgumentProvider {
+        const builder: ArgumentBuilder = new ArgumentBuilder("checkin", this._serverContext, true /* skipCollectionOption */)
+            .AddAll(this._files);
+        if (this._comment) {
+            builder.AddSwitchWithValue("comment", this.getComment(), false);
+        }
+        // TF.EXE doesn't support associating work items with checkin
+        //builder.AddSwitchWithValue("associate", this.getAssociatedWorkItems(), false);
+
+        return builder;
+    }
+
+    public GetExeOptions(): any {
+        return this.GetOptions();
+    }
+
+    public async ParseExeOutput(executionResult: IExecutionResult): Promise<string> {
+        return await this.ParseOutput(executionResult);
+    }
 }
