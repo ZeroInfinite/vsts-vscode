@@ -32,7 +32,7 @@ export class GetFileContent implements ITfvcCommand<string> {
     }
 
     public GetArguments(): IArgumentProvider {
-        let builder: ArgumentBuilder = new ArgumentBuilder("print", this._serverContext)
+        const builder: ArgumentBuilder = new ArgumentBuilder("print", this._serverContext)
             .Add(this._localPath);
         if (this._versionSpec) {
             builder.AddSwitchWithValue("version", this._versionSpec, false);
@@ -45,7 +45,7 @@ export class GetFileContent implements ITfvcCommand<string> {
     }
 
     public async ParseOutput(executionResult: IExecutionResult): Promise<string> {
-        // Check for "The specified file does not exist at the specified version" (or "No file matches" in case of the EXE) 
+        // Check for "The specified file does not exist at the specified version" (or "No file matches" in case of the EXE)
         // and write out empty string
         if (this._ignoreFileNotFound &&
             (CommandHelper.HasError(executionResult, "The specified file does not exist at the specified version") ||
@@ -63,7 +63,7 @@ export class GetFileContent implements ITfvcCommand<string> {
     }
 
     public GetExeArguments(): IArgumentProvider {
-        let builder: ArgumentBuilder = new ArgumentBuilder("view", this._serverContext)
+        const builder: ArgumentBuilder = new ArgumentBuilder("view", this._serverContext)
             .Add(this._localPath);
         if (this._versionSpec) {
             builder.AddSwitchWithValue("version", this._versionSpec, false);

@@ -4,15 +4,14 @@
 *--------------------------------------------------------------------------------------------*/
 "use strict";
 
-import url = require("url");
 import { Utils } from "../helpers/utils";
 import { RepoUtils } from "../helpers/repoutils";
 import { IRepositoryContext, RepositoryType } from "./repositorycontext";
-import { ISettings } from "../helpers/settings";
 
-var pgc = require("parse-git-config");
-var gri = require("git-repo-info");
-var path = require("path");
+import * as pgc from "parse-git-config";
+import * as gri from "git-repo-info";
+import * as path from "path";
+import * as url from "url";
 
 //Gets as much information as it can regarding the Git repository without calling the server (vsts/info)
 export class GitContext implements IRepositoryContext {
@@ -50,7 +49,7 @@ export class GitContext implements IRepositoryContext {
                 this._gitConfig = pgc.sync(syncObj);
 
                 /* tslint:disable:quotemark */
-                let remote: any = this._gitConfig['remote "origin"'];
+                const remote: any = this._gitConfig['remote "origin"'];
                 /* tslint:enable:quotemark */
                 if (remote === undefined) {
                     return;
@@ -68,11 +67,11 @@ export class GitContext implements IRepositoryContext {
 
                 //All Team Services and TFS Git remote urls contain /_git/
                 if (RepoUtils.IsTeamFoundationGitRepo(this._gitOriginalRemoteUrl)) {
-                    let purl = url.parse(this._gitOriginalRemoteUrl);
-                    if (purl != null) {
+                    const purl = url.parse(this._gitOriginalRemoteUrl);
+                    if (purl) {
                         if (RepoUtils.IsTeamFoundationServicesRepo(this._gitOriginalRemoteUrl)) {
                             this._isTeamServicesUrl = true;
-                            let splitHref = purl.href.split("@");
+                            const splitHref = purl.href.split("@");
                             if (splitHref.length === 2) {  //RemoteUrl is SSH
                                 //For Team Services, default to https:// as the protocol
                                 this._gitRemoteUrl = "https://" + purl.hostname + purl.pathname;
@@ -100,7 +99,7 @@ export class GitContext implements IRepositoryContext {
     }
 
     //constructor already initializes the GitContext
-    public async Initialize(settings: ISettings): Promise<boolean> {
+    public async Initialize(): Promise<boolean> {
         return true;
     }
 
